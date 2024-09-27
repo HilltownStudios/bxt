@@ -2,23 +2,6 @@
 import { bool, object, string, array, number, type InferType } from 'yup'
 import type { FormSubmitEvent } from '#ui/types'
 
-const state = reactive({
-    className: undefined,
-    tagline: undefined,
-    description: undefined,
-    rac: ref(false),
-    primeScores: undefined,
-    hitDice: undefined,
-    hitDiceCap: undefined,
-    maxLevels: undefined,
-    armorAllowed: undefined,
-    weaponsAllowed: undefined,
-    startingEquipment: undefined,
-
-})
-
-type Schema = InferType<typeof schema>
-
 const schema = object({
     className: string().required('Required'),
     description: string(),
@@ -30,22 +13,90 @@ const schema = object({
     maxLevels: number(),
     armorAllowed: array(),
     weaponsAllowed: array(),
-    startinEquipment: string()
+    startingEquipment: string()
 })
+
+type Schema = InferType<typeof schema>
+
+const state = reactive({
+    className: undefined,
+    tagline: undefined,
+    description: undefined,
+    rac: ref(false),
+    primeScores: undefined,
+    hitDice: ref('d8'),
+    hitDiceCap: ref(9),
+    hitPointsThereafer: ref(2),
+    maxLevels: ref(15),
+    armorAllowed: undefined,
+    weaponsAllowed: undefined,
+    startingEquipment: undefined,
+
+})
+
+
+
 
 const advancementColumns = [
     {
         label: "Level",
-        key: "level"
+        key: "level",
+        class: 'py-0 px-0'
+    },
+    {
+        label: "XP",
+        key: "xp",
+        class: 'py-0 px-0'
+    },
+    {
+        label: "HD",
+        key: "hd",
+        class: 'py-0 px-0'
+    },
+    {
+        label: "THAC0",
+        key: "thac0",
+        class: 'py-0 px-0'
     }
 ]
-const startLevel = 1
-const levels = computed(() => {
-    
-})
-const advancementRows = [{
-    level: startLevel
-}]
+
+function buildAdvancement(baseXp: number, maxLevels: number, doubleUntil: number, floorAt: [number, number], thereafter: number, hd: string, hdCap: number, hpAfter: number): Array<object> {
+    const advancementRows: Array<object> = []
+    let thisXp = 0
+    for (let idx = 1; idx <= maxLevels; idx++) {
+
+        if (idx == 1) {
+            thisXp = 0
+        } else if (idx == 2) {
+            thisXp = baseXp
+        } else if (idx == floorAt[0]) {
+            thisXp = floorAt[1]
+        } else if (idx <= doubleUntil) {
+            thisXp *= 2
+        } else {
+            thisXp += thereafter
+        }
+
+
+        advancementRows.push({
+            level: {
+                value: idx, class: 'py-0 px-0'
+            },
+            xp: {
+                value: thisXp, class: 'py-0 px-0'
+            },
+            hd: {
+                value: [idx, hd].join(""), class: 'py-0 px-0'
+            }
+        })
+    }
+    return advancementRows
+}
+
+function numberWithCommas(x: number) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 </script>
 <template>
     <div class="grid grid-cols-2">
@@ -57,8 +108,8 @@ const advancementRows = [{
                         <UFormGroup label="Class Name" description="The name of the new class." required>
                             <UInput v-model="state.className" placeholder="e.g., Fighter" />
                         </UFormGroup>
-                        <UFormGroup description="Is this a kindred or race as class?">
-                            <UCheckbox v-model="state.rac" label="K/RAC?" />
+                        <UFormGroup description="Is this a race as class?">
+                            <UCheckbox v-model="state.rac" label="RAC?" />
                         </UFormGroup>
                         <UFormGroup label="Tagline" description="One sentence summary of the class">
                             <UInput v-model="state.tagline"></UInput>
@@ -94,9 +145,18 @@ const advancementRows = [{
                             Preview
                         </div>
                     </template>
-                    <div class="text-xl uppercase">{{ state.className }}</div>
+                    <div class="flex-inline">
+                        <span class="text-xl uppercase">{{ state.className }}</span>
+
+                    </div>
                     <UDivider />
-                    <div><i>{{ state.tagline }}</i></div><br />
+
+                    <div class="mb-2"><i>{{ state.tagline }}</i></div>
+                    <div v-if="state.rac">
+                        <UBadge size="xs">Race as Class</UBadge>
+                    </div>
+                    <div class="mt-2"></div>
+                    <p>Requirements: None </p>
                     <p>Prime Abilities: {{ state.primeScores }}</p>
                     <p>Hit Points: {{ state.hitDice }} per Level, +1 after Level {{ state.hitDiceCap }}</p>
                     <p>Armor: {{ state.armorAllowed }}</p>
@@ -104,7 +164,19 @@ const advancementRows = [{
                     <template #footer>
                         <div class="h-8">Footer</div>
                     </template>
-                    <UTable :columns="advancementColumns" :rows="advancementRows"></UTable>
+                    <UTable :columns="advancementColumns"
+                        :rows="buildAdvancement(2000, state.maxLevels, 9, [8, 120000], 120000, state.hitDice, state.hitDiceCap, state.hitPointsThereafer)"
+                        class="py-2">
+                        <template #level-data="{ row }">
+                            {{ row.level.value }}
+                        </template>
+                        <template #xp-data="{ row }">
+                            {{ numberWithCommas(row.xp.value) }}
+                        </template>
+                        <template #hd-data="{ row }">
+                            {{ numberWithCommas(row.hd.value) }}
+                        </template>
+                    </UTable>
                 </UCard>
             </UContainer>
         </div>
